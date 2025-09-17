@@ -37,7 +37,7 @@ dependencies = [
   "decord",
   "einops",
   "ftfy",
-  "pytorchvideo @ git+https://github.com/facebookresearch/pytorchvideo@6cdc929",
+  "pytorchvideo @ git+https://github.com//facebookresearch/pytorchvideo@main",
   "opencv-python",
   "pycocotools",
   "matplotlib",
