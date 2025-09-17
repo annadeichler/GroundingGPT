@@ -98,7 +98,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lego*"]
+include = ["lego*0,", "video_llama*"]
 
 [tool.setuptools.package-data]
 "lego" = ["**/*.json", "**/*.yaml", "**/*.yml", "**/*.txt", "**/*.pt", "**/*.bin"]
