@@ -93,12 +93,13 @@ all = [
   "bitsandbytes==0.41.0; platform_system == 'Linux' and platform_machine == 'x86_64'"]
 
 [tool.setuptools]
-package-dir = {"" = "."}
 include-package-data = true
+package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lego*0,", "video_llama*"]
+include = ["lego*", "video_llama*"] 
 
 [tool.setuptools.package-data]
-"lego" = ["**/*.json", "**/*.yaml", "**/*.yml", "**/*.txt", "**/*.pt", "**/*.bin"]
+"lego" = ["**/*.json","**/*.yaml","**/*.yml","**/*.txt","**/*.pt","**/*.bin"]
+"video_llama" = ["**/*.json","**/*.yaml","**/*.yml","**/*.txt"]
