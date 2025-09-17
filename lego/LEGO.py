@@ -12,7 +12,63 @@ from video_llama.models.blip2 import Blip2Base, disabled_train
 from lego.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IMAGE_START_TOKEN, DEFAULT_IMAGE_END_TOKEN, DEFAULT_VIDEO_PATCH_TOKEN, \
                            DEFAULT_VIDEO_START_TOKEN, DEFAULT_VIDEO_END_TOKEN, DEFAULT_SOUND_PATCH_TOKEN, DEFAULT_SOUND_START_TOKEN, DEFAULT_SOUND_END_TOKEN
 
+from pathlib import Path
+import os
 
+def _resolve_imagebind_ckpt(model_args=None) -> Path:
+    """
+    Preferred order:
+      1) model_args.imagebind_model (file OR directory)
+      2) $IMAGEBIND_CKPT (file)
+      3) $IMAGEBIND_DIR/imagebind_huge.pth
+      4) $GROUNDINGGPT_WEIGHTS_DIR/imagebind_huge.pth
+      5) video_llama registry cache_root/imagebind/imagebind_huge.pth
+      6) ~/.cache/groundinggpt/imagebind/imagebind_huge.pth
+    """
+    # 1) CLI/config argument
+    if model_args is not None:
+        p = getattr(model_args, "imagebind_model", None)
+        if p:
+            p = Path(p)
+            if p.is_file():
+                return p
+            if (p / "imagebind_huge.pth").is_file():
+                return p / "imagebind_huge.pth"
+
+    # 2) explicit file
+    p = os.getenv("IMAGEBIND_CKPT")
+    if p and Path(p).is_file():
+        return Path(p)
+
+    # 3) dirs from env
+    for env_dir in ("IMAGEBIND_DIR", "GROUNDINGGPT_WEIGHTS_DIR"):
+        d = os.getenv(env_dir)
+        if d and Path(d, "imagebind_huge.pth").is_file():
+            return Path(d, "imagebind_huge.pth")
+
+    # 5) video_llama registry cache
+    try:
+        from video_llama.common.registry import registry
+        cache_root = registry.get_path("cache_root")
+        if cache_root:
+            p = Path(cache_root) / "imagebind" / "imagebind_huge.pth"
+            if p.is_file():
+                return p
+    except Exception:
+        pass
+
+    # 6) user cache fallback
+    p = Path.home() / ".cache" / "groundinggpt" / "imagebind" / "imagebind_huge.pth"
+    if p.is_file():
+        return p
+
+    raise FileNotFoundError(
+        "ImageBind checkpoint not found. Provide via model_args.imagebind_model "
+        "or set IMAGEBIND_CKPT=/path/to/imagebind_huge.pth "
+        "or IMAGEBIND_DIR=/dir/containing/imagebind_huge.pth"
+    )
+    
+    
 class LEGOConfig(LlamaConfig):
     model_type = "LEGO"
 
@@ -47,9 +103,13 @@ class LEGOLlamaModel(LlamaModel):
                 layer.output = None
                 layer.intermediate = None    
 
-            self.audio_encoder,self.audio_hidden_size = imagebind_model.imagebind_huge()
-            self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format('/ckpt/imagebind')))
+            # replace hard coded paths
+            # self.audio_encoder,self.audio_hidden_size = imagebind_model.imagebind_huge()
+            # self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format('/ckpt/imagebind')))
+            self.audio_encoder, self.audio_hidden_size = imagebind_model.imagebind_huge()
+            # Do NOT load weights here; we load them in initialize_video_sound_modules()
 
+            
             self.audio_Qformer,self.audio_query_tokens = self.init_video_Qformer(num_query_token = config.sound_token_len, vision_width=1024, num_hidden_layers =2)
             self.audio_Qformer.cls = None
             self.audio_Qformer.bert.embeddings.word_embeddings = None
@@ -230,9 +290,14 @@ class LEGOLlamaModel(LlamaModel):
     
         # sound tower init
         print (f'Initializing audio encoder from {model_args.imagebind_model} ...')
-        self.audio_encoder,self.audio_hidden_size = \
-            imagebind_model.imagebind_huge()
-        self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format(model_args.imagebind_model)))
+        # replace hard coded paths, use resolver instead
+        # self.audio_encoder,self.audio_hidden_size = \
+        #     imagebind_model.imagebind_huge()
+        # self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format(model_args.imagebind_model)))
+        self.audio_encoder, self.audio_hidden_size = imagebind_model.imagebind_huge()
+        ckpt_path = _resolve_imagebind_ckpt(model_args)
+        state = torch.load(str(ckpt_path), map_location="cpu")
+        self.audio_encoder.load_state_dict(state)
         # free sound encoder
         for name, param in self.audio_encoder.named_parameters():
             param.requires_grad = False
