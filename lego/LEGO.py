@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
@@ -51,6 +52,7 @@ def _resolve_imagebind_ckpt(model_args=None) -> Path:
         from video_llama.common.registry import registry
         cache_root = registry.get_path("cache_root")
         if cache_root:
+            print(f"Looking for imagebind checkpoint in video_llama cache root: {Path(cache_root)} / imagebind / imagebind_huge.pth")
             p = Path(cache_root) / "imagebind" / "imagebind_huge.pth"
             if p.is_file():
                 return p
@@ -77,7 +79,7 @@ class LEGOLlamaModel(LlamaModel):
 
     def __init__(self, config: LlamaConfig):
         super(LEGOLlamaModel, self).__init__(config)
-
+        print(f"Initializing LEGOLlamaModel from config: {config._name_or_path}")
         if hasattr(config, "mm_vision_tower"):
             self.vision_tower = [CLIPVisionModel.from_pretrained(config.mm_vision_tower)]
             modules = [nn.Linear(config.mm_vision_hidden_size, config.hidden_size)]
@@ -106,7 +108,12 @@ class LEGOLlamaModel(LlamaModel):
             # replace hard coded paths
             # self.audio_encoder,self.audio_hidden_size = imagebind_model.imagebind_huge()
             # self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format('/ckpt/imagebind')))
+            
             self.audio_encoder, self.audio_hidden_size = imagebind_model.imagebind_huge()
+            ckpt_dir_imagebind = os.path.join(config._name_or_path, "imagebind")
+            self.audio_encoder.load_state_dict(
+                torch.load(os.path.join(ckpt_dir_imagebind, "imagebind_huge.pth"), map_location="cpu")
+            )
             # Do NOT load weights here; we load them in initialize_video_sound_modules()
 
             
@@ -290,14 +297,9 @@ class LEGOLlamaModel(LlamaModel):
     
         # sound tower init
         print (f'Initializing audio encoder from {model_args.imagebind_model} ...')
-        # replace hard coded paths, use resolver instead
-        # self.audio_encoder,self.audio_hidden_size = \
-        #     imagebind_model.imagebind_huge()
-        # self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format(model_args.imagebind_model)))
-        self.audio_encoder, self.audio_hidden_size = imagebind_model.imagebind_huge()
-        ckpt_path = _resolve_imagebind_ckpt(model_args)
-        state = torch.load(str(ckpt_path), map_location="cpu")
-        self.audio_encoder.load_state_dict(state)
+        self.audio_encoder,self.audio_hidden_size = \
+            imagebind_model.imagebind_huge()
+        self.audio_encoder.load_state_dict(torch.load("{}/imagebind_huge.pth".format(model_args.imagebind_model)))
         # free sound encoder
         for name, param in self.audio_encoder.named_parameters():
             param.requires_grad = False
