@@ -29,7 +29,7 @@ dependencies = [
   "huggingface_hub >= 0.23.2, < 1.0",
   "numpy",
   "pillow",
-  "httpx<1.0 and >=0.24.1",
+  "httpx>=0.24.1,<1.0",
   "scikit-image",
   "timm",
   "iopath",
