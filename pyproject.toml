@@ -26,7 +26,7 @@ dependencies = [
   "torchaudio @ https://download.pytorch.org/whl/cu124/torchaudio-2.6.0%2Bcu124-cp310-cp310-linux_x86_64.whl",
   "transformers==4.43.0",
   "tokenizers==0.15",
-  "huggingface_hub>=0.17,<0.20",
+  "huggingface_hub >= 0.23.2, < 1.0",
   "numpy",
   "pillow",
   "httpx==0.23.0",
