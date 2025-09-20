@@ -15,9 +15,9 @@ librosa
 wandb
 requests
 sentencepiece
-tokenizers==0.14
+tokenizers==0.15
 uvicorn
-transformers==4.34.0
+transformers==4.43.0
 httpx==0.23.0
 scikit-image
 timm
